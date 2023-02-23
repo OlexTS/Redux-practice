@@ -1,14 +1,8 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, isAnyOf } from '@reduxjs/toolkit';
 import { fetchTasks, addTask, deleteTask, toggleCompleted } from './operations';
 
-const handlePending = state => {
-  state.isLoading = true
-};
-
-const handleRejected = (state, action) => {
-state.isLoading = false;
-      state.error = action.payload;
-}
+const arrayActions = [fetchTasks, addTask, deleteTask, toggleCompleted];
+const getActions = type => arrayActions.map(action => action[type]);
 
 export const tasksSlice = createSlice({
   name: 'tasks',
@@ -17,42 +11,52 @@ export const tasksSlice = createSlice({
     isLoading: false,
     error: null,
   },
-  extraReducers: {
-    [fetchTasks.pending]: handlePending,
-    [addTask.pending]: handlePending,
-    [deleteTask.pending]: handlePending,
-    [toggleCompleted.pending]: handlePending,
-    [fetchTasks.rejected]: handleRejected,
-    [addTask.rejected]: handleRejected,
-    [deleteTask.rejected]: handleRejected,
-    [toggleCompleted.rejected]: handleRejected,
-    
-    [fetchTasks.fulfilled](state, action) {
-      state.isLoading = false;
-      state.error = null;
-      state.items = action.payload;
-    },
-    
-    
-    [addTask.fulfilled](state, action) {
-      state.isLoading = false;
-      state.error = null;
-      state.items.push(action.payload);
-    },
-    [deleteTask.fulfilled](state, action) {
-      state.isLoading = false;
-      state.error = null;
-      const index = state.items.findIndex(
-        task => task.id === action.payload.id
+  extraReducers: builder => {
+    return builder
+      .addCase(fetchTasks.fulfilled, (state, action) => {
+        state.items = action.payload;
+      })
+      .addCase(addTask.fulfilled, (state, action) => {
+        state.items.push(action.payload);
+      })
+      .addCase(deleteTask.fulfilled, (state, action) => {
+        const index = state.items.findIndex(
+          task => task.id === action.payload.id
+        );
+        state.items.splice(index, 1);
+      })
+      .addCase(toggleCompleted.fulfilled, (state, action) => {
+        const index = state.items.findIndex(
+          task => task.id === action.payload.id
+        );
+        state.items.splice(index, 1, action.payload);
+      })
+      .addMatcher(
+        isAnyOf(
+          ...getActions('pending')
+        ),
+        state => {
+          state.isLoading = true;
+        }
+      )
+      .addMatcher(
+        isAnyOf(
+          ...getActions('rejected')
+        ),
+        (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload;
+        }
+      )
+      .addMatcher(
+        isAnyOf(
+          ...getActions('fulfilled')
+        ),
+        (state, action) => {
+          state.isLoading = false;
+          state.error = null;
+        }
       );
-      state.items.splice(index, 1);
-    },
-    [toggleCompleted.fulfilled](state, action) {
-      state.isLoading = false;
-      state.error = null;
-      const index = state.items.findIndex(task => task.id === action.payload.id);
-      state.items.splice(index, 1, action.payload);
-    },
   },
 });
 
